@@ -9,7 +9,7 @@
 
 #define MAXLINE 1024
 
-static void sig_alrm(int);
+int readable_timeo(int fd, int sec);
 
 void dg_cli(FILE *fp, int sockfd, const struct sockaddr *pservaddr, socklen_t servlen)
 {
@@ -53,9 +53,6 @@ void dg_cli(FILE *fp, int sockfd, const struct sockaddr *pservaddr, socklen_t se
 
 	s_hdr.seq = 0;
 	s_hdr.last = 0;
-	sa.sa_handler = sig_alrm;
-	sa.sa_flags = 0;
-	sigaction(SIGALRM, &sa, NULL);
 
 	while(1)
 	{
@@ -72,20 +69,13 @@ void dg_cli(FILE *fp, int sockfd, const struct sockaddr *pservaddr, socklen_t se
 		do
 		{
 			sendmsg(sockfd, &s_msg, 0);
-
-			alarm(1);
-			if( (n = recvmsg(sockfd, &r_msg, 0)) < 0) {
-				if(errno == EINTR) {
-					/*fprintf(stderr, "timeout\n");*/
-				} else {
+			
+			if(readable_timeo(sockfd, 1) == 0) {
+				/* time out */
+			} else if( (n = recvmsg(sockfd, &r_msg, 0)) < 0) {
 					perror("Receive error");
 					exit(1);
-				}
 			} else if(s_hdr.seq == r_hdr.seq) {
-				alarm(0);
-				/*recvline[n] = 0;*/
-				/*printf("%d\t", s_hdr.seq);*/
-				/*fputs(recvline, stdout);*/
 				s_hdr.seq++;
 				break;
 			}
@@ -96,9 +86,18 @@ void dg_cli(FILE *fp, int sockfd, const struct sockaddr *pservaddr, socklen_t se
 	}
 }
 
-static void sig_alrm(int signo)
+int readable_timeo(int fd, int sec)
 {
-	return;
+	fd_set rset;
+	struct timeval tv;
+
+	FD_ZERO(&rset);
+	FD_SET(fd, &rset);
+
+	tv.tv_sec = sec;
+	tv.tv_usec = 0;
+
+	return (select(fd+1, &rset, NULL, NULL, &tv));
 }
 
 int main(int argc, char **argv)
