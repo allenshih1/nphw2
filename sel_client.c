@@ -103,11 +103,12 @@ int readable_timeo(int fd, int sec)
 int main(int argc, char **argv)
 {
 	int sockfd;
+	FILE *fp;
 	struct sockaddr_in servaddr;
 
-	if(argc != 3)
+	if(argc != 4)
 	{
-		fprintf(stderr, "usage: %s <ip> <port>", argv[0]);
+		fprintf(stderr, "usage: %s <ip> <port> <input>\n", argv[0]);
 		exit(1);
 	}
 
@@ -118,7 +119,15 @@ int main(int argc, char **argv)
 
 	sockfd = socket(AF_INET, SOCK_DGRAM, 0);
 
-	dg_cli(stdin, sockfd, (struct sockaddr *) &servaddr, sizeof(servaddr));
+	if( (fp = fopen(argv[3], "r")) == 0 )
+	{
+		fprintf(stderr, "Cannot open file %s\n", argv[3]);
+		exit(1);
+	}
+
+	dg_cli(fp, sockfd, (struct sockaddr *) &servaddr, sizeof(servaddr));
+
+	fclose(fp);
 
 	return 0;
 }

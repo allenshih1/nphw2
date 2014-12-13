@@ -7,7 +7,7 @@
 
 #define MAXLINE 1024
 
-void dg_recv(int sockfd, struct sockaddr *pcliaddr, socklen_t clilen)
+void dg_recv(FILE *fp, int sockfd, struct sockaddr *pcliaddr, socklen_t clilen)
 {
 	int n;
 	socklen_t len;
@@ -45,10 +45,7 @@ void dg_recv(int sockfd, struct sockaddr *pcliaddr, socklen_t clilen)
 		n = recvmsg(sockfd, &msg, 0);
 
 		if(hdr.seq == nextseq) {
-			/*mesg[n] = 0;*/
-			/*printf("%d\t", hdr.seq);*/
-			/*fputs(mesg, stdout);*/
-			fwrite(mesg, n - sizeof(struct myhdr), 1, stdout);
+			fwrite(mesg, n - sizeof(struct myhdr), 1, fp);
 			nextseq++;
 		}
 
@@ -62,11 +59,12 @@ void dg_recv(int sockfd, struct sockaddr *pcliaddr, socklen_t clilen)
 int main(int argc, char **argv)
 {
 	int sockfd;
+	FILE *fp;
 	struct sockaddr_in servaddr, cliaddr;
 
-	if(argc != 2)
+	if(argc != 3)
 	{
-		fprintf(stderr, "usage: %s <port>", argv[0]);
+		fprintf(stderr, "usage: %s <port> <output>\n", argv[0]);
 		exit(1);
 	}
 
@@ -79,7 +77,15 @@ int main(int argc, char **argv)
 
 	bind(sockfd, (struct sockaddr *) &servaddr, sizeof(servaddr));
 
-	dg_recv(sockfd, (struct sockaddr *) &cliaddr, sizeof(cliaddr));
+	if( (fp = fopen(argv[2], "w")) == 0 )
+	{
+		fprintf(stderr, "Cannot open file %s\n", argv[2]);
+		exit(1);
+	}
+
+	dg_recv(fp, sockfd, (struct sockaddr *) &cliaddr, sizeof(cliaddr));
+
+	fclose(fp);
 
 	return 0;
 }
